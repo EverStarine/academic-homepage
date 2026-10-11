@@ -32,9 +32,76 @@ function activities(){return `<div class="section-wrap page-body"><section>${sec
 function publications(){return `<div class="section-wrap page-body"><section>${sectionHead('01','发表列表','PUBLICATION LIST')}<div class="publication-toolbar"><div class="filter-group" role="group" aria-label="发表类型">${['全部','期刊论文','会议论文','预印本'].map((t,i)=>`<button class="filter${i===0?' active':''}" data-publication="${t}" aria-pressed="${i===0}">${t}</button>`).join('')}</div><label class="search-box"><span class="search-icon" aria-hidden="true"></span><input type="search" id="publication-search" placeholder="搜索标题、作者或关键词" aria-label="搜索学术发表"><kbd aria-hidden="true">/</kbd></label></div><div class="publication-meta"><span id="publication-count">全部发表 · 0 项</span><span>按年份排列 <span aria-hidden="true">↓</span></span></div><div id="publication-results" aria-live="polite">${emptyState('学术发表待补充','论文题目、作者、发表信息及相关链接将在这里展示。')}</div><div class="publication-legend"><span><i></i> 发表记录将包含</span><span>论文题目</span><span>作者信息</span><span>发表年份</span><span>期刊 / 会议</span><span>全文 / DOI</span></div></section></div>`;}
 function projects(){return `<div class="section-wrap page-body projects-page"><div class="projects-intro"><p>书稿仍在编写；各卷标注当前 PDF 文件日期。</p><span class="mono">2 PROJECTS / 8 PDF FILES</span></div><div class="book-projects">${BOOK_PROJECTS.map((project,index)=>`<section class="book-project" aria-labelledby="project-${project.id}"><div class="book-project-cover cover-${project.id}"><span class="mono">WRITING PROJECT / 0${index+1}</span><div class="book-cover-lines" aria-hidden="true"><i></i><i></i><i></i></div><h2 id="project-${project.id}">${project.name}</h2><span class="book-project-en">${project.en}</span><div class="book-cover-bottom"><span><i></i> 编写中</span><span>${project.books.length} 卷 · PDF</span></div></div><div class="book-project-content"><div class="book-list-heading"><span>分卷阅读</span><span>PDF LIBRARY</span></div><ol class="book-list">${project.books.map(book=>`<li class="book-row"><span class="book-volume">第${['一','二','三','四','五'][book.volume-1]}卷</span><div class="book-info"><h3>${book.title}</h3><p>${book.pages} 页 <i>·</i> ${(book.bytes/1048576).toFixed(1)} MB <i>·</i> 文件日期 <time datetime="${book.date}">${book.date}</time></p></div><div class="book-actions"><a class="book-read" href="${book.url}" target="_blank" rel="noopener noreferrer" type="application/pdf" aria-label="在线阅读${project.name}第${book.volume}卷：${book.title} PDF，新标签页打开">阅读 PDF <span aria-hidden="true">↗</span></a><a class="book-download" href="${book.url}" download="${project.name}-第${book.volume}卷.pdf" type="application/pdf" aria-label="下载${project.name}第${book.volume}卷 PDF">下载 <span aria-hidden="true">↓</span></a></div></li>`).join('')}</ol></div></section>`).join('')}</div></div>`;}
 const renderers = {home,about,research,teaching,activities,publications,projects};
-function setActive(button,selector){document.querySelectorAll(selector).forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});}
+const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+const indicators = new WeakMap();
+const contentAnimations = new WeakMap();
+const activeAnimations = new Set();
+const pageOrder = ['home', ...pages.map(page=>page.key)];
+let hasRendered = false;
+
+function animateContent(element,direction=1,compact=false){
+  contentAnimations.get(element)?.cancel();
+  if(!direction||motionPreference.matches||typeof element?.animate!=='function')return;
+  const edge = direction>0
+    ? 'polygon(0 0, 94% 0, 100% 100%, 0 100%)'
+    : 'polygon(6% 0, 100% 0, 100% 100%, 0 100%)';
+  const animation = element.animate([
+    {opacity:.15,transform:`translateX(${direction*(compact?12:24)}px)`,clipPath:edge},
+    {opacity:1,transform:'translateX(0)',clipPath:'polygon(0 0, 100% 0, 100% 100%, 0 100%)'}
+  ],{duration:compact?260:380,easing:'cubic-bezier(.22,1,.36,1)'});
+  contentAnimations.set(element,animation);
+  activeAnimations.add(animation);
+  animation.finished.catch(()=>{}).then(()=>{
+    activeAnimations.delete(animation);
+    if(contentAnimations.get(element)===animation)contentAnimations.delete(element);
+  });
+}
+
+function updateIndicator(group,instant=false){
+  if(typeof group?.getBoundingClientRect!=='function'||typeof document.createElement!=='function')return;
+  const selected = group.querySelector('.active');
+  if(!selected)return;
+  const bounds = group.getBoundingClientRect();
+  if(!bounds.width||!bounds.height)return;
+  let indicator = indicators.get(group);
+  if(!indicator){
+    indicator=document.createElement('span');
+    indicator.className=`motion-indicator ${group===nav?'nav-indicator':'filter-indicator'}`;
+    indicator.setAttribute('aria-hidden','true');
+    group.append(indicator);
+    indicators.set(group,indicator);
+    group.classList.add('has-motion');
+    instant=true;
+  }
+  const item = selected.getBoundingClientRect();
+  const isNav = group===nav;
+  const width = isNav?20:item.width;
+  const height = isNav?3:item.height;
+  const x = item.left-bounds.left-group.clientLeft+group.scrollLeft+(isNav?(item.width-width)/2:0);
+  const y = item.top-bounds.top-group.clientTop+group.scrollTop+(isNav?item.height-24:0);
+  indicator.style.transition=instant?'none':'';
+  indicator.style.width=`${width}px`;
+  indicator.style.height=`${height}px`;
+  indicator.style.transform=`translate(${x}px,${y}px)`;
+  if(instant){indicator.getBoundingClientRect();indicator.style.transition='';}
+}
+
+function refreshIndicators(instant=true){
+  updateIndicator(nav,instant);
+  document.querySelectorAll('.filter-group').forEach(group=>updateIndicator(group,instant));
+}
+
+function setActive(button,selector){
+  const buttons = [...document.querySelectorAll(selector)];
+  const previous = buttons.findIndex(b=>b.getAttribute('aria-pressed')==='true');
+  const next = buttons.indexOf(button);
+  buttons.forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+  updateIndicator(button.closest?.('.filter-group'));
+  return previous===next?0:Math.sign(next-previous)||1;
+}
 function render(){
   const route = location.hash.replace(/^#\/?/,'').split('?')[0];
+  const previousPage = currentPage;
   currentPage = Object.hasOwn(renderers,route)?route:'home';
   const p = pages.find(p=>p.key===currentPage);
   main.innerHTML=(p?pageHeader(p):'')+renderers[currentPage]();
@@ -42,18 +109,24 @@ function render(){
   nav.querySelectorAll('a').forEach(a=>{const active=a.dataset.page===currentPage;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   nav.classList.remove('open');menu.setAttribute('aria-expanded','false');
   window.scrollTo({top:0,behavior:'instant'});
+  refreshIndicators(!hasRendered);
+  if(hasRendered&&previousPage!==currentPage)animateContent(main,Math.sign(pageOrder.indexOf(currentPage)-pageOrder.indexOf(previousPage)));
+  hasRendered=true;
 }
-menu.addEventListener('click',()=>{const opened=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',String(opened));nav.classList.toggle('open',opened);});
+menu.addEventListener('click',()=>{const opened=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',String(opened));nav.classList.toggle('open',opened);if(opened)updateIndicator(nav,true);});
 document.addEventListener('click',event=>{
   if(event.target.closest('.skip-link')){event.preventDefault();main.focus();main.scrollIntoView({behavior:'instant'});return;}
   const link=event.target.closest('[data-scroll]');
   if(link){event.preventDefault();document.getElementById(link.dataset.scroll)?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
-  const t=event.target.closest('[data-teaching]');if(t){setActive(t,'[data-teaching]');document.querySelector('#course-results').innerHTML=t.dataset.teaching==='current'?emptyState('当前学期课程待补充','课程名称、授课时间与课程简介将在这里展示。'):emptyState('历年课程待补充','过去学期的课程与教学资料将在这里归档。');}
-  const a=event.target.closest('[data-activity]');if(a){setActive(a,'[data-activity]');document.querySelector('#activity-results').innerHTML=emptyState(a.dataset.activity==='全部活动'?'活动记录待补充':`${a.dataset.activity}待补充`,'暂无相关记录。');}
-  const p=event.target.closest('[data-publication]');if(p){setActive(p,'[data-publication]');updatePublications();}
+  const t=event.target.closest('[data-teaching]');if(t){const direction=setActive(t,'[data-teaching]');const results=document.querySelector('#course-results');results.innerHTML=t.dataset.teaching==='current'?emptyState('当前学期课程待补充','课程名称、授课时间与课程简介将在这里展示。'):emptyState('历年课程待补充','过去学期的课程与教学资料将在这里归档。');animateContent(results,direction,true);}
+  const a=event.target.closest('[data-activity]');if(a){const direction=setActive(a,'[data-activity]');const results=document.querySelector('#activity-results');results.innerHTML=emptyState(a.dataset.activity==='全部活动'?'活动记录待补充':`${a.dataset.activity}待补充`,'暂无相关记录。');animateContent(results,direction,true);}
+  const p=event.target.closest('[data-publication]');if(p){updatePublications(setActive(p,'[data-publication]'));}
 });
-function updatePublications(){const q=document.querySelector('#publication-search').value.trim();const type=document.querySelector('[data-publication].active').dataset.publication;document.querySelector('#publication-count').textContent=`${type==='全部'?'全部发表':type} · 0 项`;document.querySelector('#publication-results').innerHTML=q?emptyState('暂无搜索结果','发表列表尚未填写，暂时没有可检索的条目。'):emptyState(type==='全部'?'学术发表待补充':`${type}待补充`,'论文题目、作者、发表信息及相关链接将在这里展示。');}
+function updatePublications(direction=0){const q=document.querySelector('#publication-search').value.trim();const type=document.querySelector('[data-publication].active').dataset.publication;document.querySelector('#publication-count').textContent=`${type==='全部'?'全部发表':type} · 0 项`;const results=document.querySelector('#publication-results');results.innerHTML=q?emptyState('暂无搜索结果','发表列表尚未填写，暂时没有可检索的条目。'):emptyState(type==='全部'?'学术发表待补充':`${type}待补充`,'论文题目、作者、发表信息及相关链接将在这里展示。');animateContent(results,direction,true);}
 document.addEventListener('input',e=>{if(e.target.id==='publication-search')updatePublications();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const restoreFocus=nav.contains(document.activeElement);nav.classList.remove('open');menu.setAttribute('aria-expanded','false');if(restoreFocus)menu.focus();}if(e.key==='/'&&currentPage==='publications'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();document.querySelector('#publication-search').focus();}});
 window.addEventListener('hashchange',()=>{render();main.focus({preventScroll:true});});
+window.addEventListener('resize',()=>refreshIndicators());
+document.fonts?.ready.then(()=>refreshIndicators());
+motionPreference.addEventListener?.('change',()=>{if(motionPreference.matches)activeAnimations.forEach(animation=>animation.finish());refreshIndicators();});
 render();
