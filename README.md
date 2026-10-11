@@ -31,4 +31,6 @@ GitHub Pages：<https://everstarine.github.io/academic-homepage/>
 
 PDF 位于 `dist/assets/pdf/`，卷册信息和下载地址定义在 `dist/books.js`。更新 PDF 时需同步检查该文件中的页数、文件大小和日期。
 
-本次快照源版本：`782b61656abdf1df1afd51c3ef957df676a91842`。
+初始快照源版本：`782b61656abdf1df1afd51c3ef957df676a91842`。
+
+分析学 PDF 最近核对于 2026-10-11，三卷分别为 975、474、395 页。第三卷已更新为当天的 PDF，并移除了旧版提示。
