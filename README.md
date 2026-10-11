@@ -1,6 +1,6 @@
 # EverStarine 个人学术主页
 
-个人学术主页的独立源码备份，保存于 2026-10-11。
+个人学术主页的独立源码仓库，首次发布于 2026-10-11。
 
 ## 备份内容
 
@@ -15,11 +15,15 @@
 
 ## 当前用途
 
-本仓库仅作为私有备份，尚未启用 GitHub Pages，也没有自动部署工作流。现有 OpenAI Sites 站点的内容、网址和访问设置未因本次备份而修改。
+本仓库已公开，并通过 GitHub Pages 提供独立于 ChatGPT 订阅的网站访问。
 
-当前在线网站：<https://wuling-academic-study-1011.pretty-grass-6439.chatgpt.site/>
+GitHub Pages：<https://everstarine.github.io/academic-homepage/>
 
-这是一份当前版本的独立快照，不会自动同步本地文件或 OpenAI Sites 上的后续修改。备份没有包含 Sites 托管标识、本地工作记录、部署凭据、书籍 TeX 源文件或重复压缩包。
+原 OpenAI Sites 站点：<https://wuling-academic-study-1011.pretty-grass-6439.chatgpt.site/>。此次发布没有修改该站点。
+
+`main` 分支保留 `dist/` 源码与资源；`gh-pages` 分支将相同文件放在根目录供 Pages 发布，并使用 `.nojekyll` 保持静态文件原样。GitHub 自动发布推送到 `gh-pages` 的更新；只修改 `main` 或本地文件不会更新线上页面。
+
+本仓库不包含 Sites 托管标识、本地工作记录、部署凭据、书籍 TeX 源文件或重复压缩包。
 
 ## 预览与恢复
 
