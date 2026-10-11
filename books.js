@@ -23,10 +23,10 @@ const BOOK_PROJECTS = [
       {
         "volume": 3,
         "title": "复分析、共形几何与解析数论",
-        "pages": 147,
+        "pages": 395,
         "url": "./assets/pdf/analysis-book-3.pdf",
-        "bytes": 832062,
-        "date": "2026-09-19"
+        "bytes": 2312171,
+        "date": "2026-10-11"
       }
     ]
   },
